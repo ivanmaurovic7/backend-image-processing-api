@@ -1,10 +1,10 @@
-import Media from '../models/Media';
+import Media, { IMedia } from '../models/Media';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import redisClient from '../helpers/redisClient';
 import { uploadToStorage, uploadThumbnailToStorage } from '../helpers/awsStorage';
 
-const CACHE_DURATION = 60; // seconds
+const CACHE_DURATION = 60 * 60 * 24; // 1 day
 
 export class MediaService {
   /**
@@ -13,7 +13,7 @@ export class MediaService {
    * @returns The saved media document.
    * @throws Error if file is missing or any error occurs.
    */
-  public async createMedia(file: Express.Multer.File): Promise<any> {
+  public async createMedia(file: Express.Multer.File): Promise<IMedia> {
     if (!file) {
       throw new Error('No file uploaded.');
     }
@@ -55,17 +55,17 @@ export class MediaService {
     // Invalidate the cache for GET /media list
     await redisClient.del('media:all');
 
-    return savedMedia;
+    return savedMedia as IMedia;
   }
 
   /**
    * Retrieves all media records from MongoDB, with caching via Redis.
    */
-  public async getAllMedia(): Promise<any> {
+  public async getAllMedia(): Promise<IMedia[]> {
     const cacheKey = 'media:all';
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      return JSON.parse(cachedData);
+      return JSON.parse(cachedData) as IMedia[];
     }
 
     const mediaList = await Media.find();
@@ -77,11 +77,11 @@ export class MediaService {
    * Retrieves a specific media record by id, with caching.
    * @param id The media document id.
    */
-  public async getMediaById(id: string): Promise<any> {
+  public async getMediaById(id: string): Promise<IMedia> {
     const cacheKey = `media:${id}`;
     const cachedData = await redisClient.get(cacheKey);
     if (cachedData) {
-      return JSON.parse(cachedData);
+      return JSON.parse(cachedData) as IMedia;
     }
 
     const media = await Media.findById(id);
@@ -90,7 +90,7 @@ export class MediaService {
     }
 
     await redisClient.setEx(cacheKey, CACHE_DURATION, JSON.stringify(media));
-    return media;
+    return media as IMedia;
   }
 
   /**
@@ -98,10 +98,7 @@ export class MediaService {
    * @param id The media document id.
    */
   public async getOriginalUrl(id: string): Promise<string> {
-    const media = await Media.findById(id);
-    if (!media) {
-      throw new Error('Media not found.');
-    }
+    const media = await this.getMediaById(id);
     return media.originalUrl;
   }
 
@@ -110,10 +107,7 @@ export class MediaService {
    * @param id The media document id.
    */
   public async getThumbnailUrl(id: string): Promise<string> {
-    const media = await Media.findById(id);
-    if (!media) {
-      throw new Error('Media not found.');
-    }
+    const media = await this.getMediaById(id);
     return media.thumbnailUrl;
   }
 }

@@ -11,9 +11,11 @@ export const createMedia = async (req: Request, res: Response, next: NextFunctio
     }
     const savedMedia = await mediaService.createMedia(req.file);
     res.status(201).json(savedMedia);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
-    res.status(500).json({ error: error.message || 'Server error while processing image.' });
+    if (error instanceof Error) {
+      res.status(500).json({ error: error.message || 'Server error while processing image.' });
+    }
   }
 };
 
@@ -21,7 +23,7 @@ export const getAllMedia = async (req: Request, res: Response, next: NextFunctio
   try {
     const mediaList = await mediaService.getAllMedia();
     res.json(mediaList);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
     res.status(500).json({ error: 'Error retrieving media.' });
   }
@@ -31,12 +33,14 @@ export const getMediaById = async (req: Request, res: Response, next: NextFuncti
   try {
     const media = await mediaService.getMediaById(req.params.id);
     res.json(media);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
-    if (error.message === 'Media not found.') {
-      res.status(404).json({ error: error.message });
-      return;
-    }
+    if (error instanceof Error) {
+      if (error.message === 'Media not found.') {
+        res.status(404).json({ error: error.message });
+        return;
+      }
+    } 
     res.status(500).json({ error: 'Error retrieving media.' });
   }
 };
@@ -45,11 +49,13 @@ export const serveOriginalFile = async (req: Request, res: Response, next: NextF
   try {
     const originalUrl = await mediaService.getOriginalUrl(req.params.id);
     res.redirect(originalUrl);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
-    if (error.message === 'Media not found.') {
-      res.status(404).json({ error: error.message });
-      return;
+    if (error instanceof Error) {
+      if (error.message === 'Media not found.') {
+        res.status(404).json({ error: error.message });
+        return;
+      }
     }
     res.status(500).json({ error: 'Error serving original file.' });
   }
@@ -59,11 +65,13 @@ export const serveThumbnail = async (req: Request, res: Response, next: NextFunc
   try {
     const thumbnailUrl = await mediaService.getThumbnailUrl(req.params.id);
     res.redirect(thumbnailUrl);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(error);
-    if (error.message === 'Media not found.') {
-      res.status(404).json({ error: error.message });
-      return;
+    if (error instanceof Error) {
+      if (error.message === 'Media not found.') {
+        res.status(404).json({ error: error.message });
+        return;
+      }
     }
     res.status(500).json({ error: 'Error serving thumbnail.' });
   }
